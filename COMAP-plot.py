@@ -10,6 +10,13 @@ import FileDialog
 from matplotlib.font_manager import FontProperties
 from matplotlib.backends.backend_pdf import PdfPages
 
+"""
+TO DO:
+Fix so that detectors that does not exist shows blank even if non-all plots and histograms 
+"""
+
+
+
 class h5_plot:
 
 	def __init__(self):
@@ -21,7 +28,7 @@ class h5_plot:
 
 		opts = []
 		try:
-			opts, args = getopt.getopt(sys.argv[2:], 'o:x:y:s:d:n:l:u:x:h:t:f:p:', ["outf=", "xpar=", "ypar=", "sb=", "det=", "nu=", "low=", "up=", "text=", "help=", "time=", "freq=", "plot"])
+			opts, args = getopt.getopt(sys.argv[2:], 'o:x:y:s:d:n:l:u:x:h:t:f:p:b:', ["outf=", "xpar=", "ypar=", "sb=", "det=", "nu=", "low=", "up=", "text=", "help=", "time=", "freq=", "plot", "bins="])
 		except getopt.GetoptError:
 			self.usage()
 
@@ -36,6 +43,7 @@ class h5_plot:
 		self.freq1 		= "[16]"
 		self.time1 		= "[1]"
 		self.plot 		= "graph"
+		self.bins 		= "fd"
 
 		self.y_lim 		= False
 		help 			= False
@@ -90,7 +98,8 @@ class h5_plot:
 				self.y_max 	= float(arg)
 			elif opt in ('-p', '--plot'):
 				self.plot 	= arg
-
+			elif opt in ('-b', '--bins'):
+				self.bins 	= arg
 			elif opt in ('-t', '--time'):
 				if self.y1 != "tod":
 					print "Only tod has time dependence, please select an other y-variable or remove the time values."
@@ -123,6 +132,7 @@ class h5_plot:
 		m11 ="  (help) "
 		m12 ="  (time) " 
 		m13 ="  (low/high frequencies to find avg frequency, default [0,0]) " 
+		m14 ="  (bin-type from numpy.histogram, default fd) " 
 		print "\nThis is the usage function\n"
 		print 'Usage: plot_try1.py -flag '
 		print "Flags:"
@@ -136,6 +146,7 @@ class h5_plot:
 		print "-t ----> optional --time", wrapper.fill(m12)
 		print "-l ----> optional --low", wrapper.fill(m8)
 		print "-u ----> optional --up", wrapper.fill(m9)
+		print "-b ----> optional --bins", wrapper.fill(m14)
 		print "-p ----> optional --plot", wrapper.fill(m10)
 		print "-h ----> optional --help", wrapper.fill(m11)
 		print ""	
@@ -445,6 +456,18 @@ class h5_plot:
 				print "Plot over time for different frequencies instead."
 				sys.exit()
 
+		self.set_sb1	= False
+		self.set_freq1	= False
+		self.set_det1	= False
+		self.set_time1	= False
+
+		if self.plot == "hist":
+			if ((len(self.freq )!= 1) or (len(self.time) != 1)):
+				print "When plotting histogram only 1 histogram per plot is available."
+				print "Make sure you have not requested several time slots or frequencies"
+				sys.exit()
+			else:
+				pass
 
 	def plot_graph(self):
 		if self.y1 == "tod":
@@ -527,7 +550,7 @@ class h5_plot:
 					
 					plt.text(-0.45, 6., 'tod', ha='center', va='center', fontsize=20)
 					plt.text(-0.45, -0.3, '--------------------------Time [s from first data]-------------------------->', ha='center', va='center', fontsize=16)
-					plt.text(-3.50, 3., '----------Detector readings [ADU]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					plt.text(-3.50, 3., '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
 					plt.subplots_adjust(wspace= 1) 
 
 				elif len(self.det) == 1:
@@ -888,9 +911,8 @@ class h5_plot:
 										if index == 12:
 											index = 2
 										plt.subplot2grid((rows,cols), (row, col*12), colspan=12)
-										plt.hist(self.y[index-1][self.sb[0]][self.freq[0]][:])
-										if self.y_lim:
-											plt.ylim(self.y_min, self.y_max)
+										plt.hist(self.y[index-1][self.sb[0]][self.freq[0]][:], bins = "fd")
+
 										# change 12 to index when more detectors are available
 										leg = plt.legend(["det %i" %(12)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
 										for item in leg.legendHandles:
@@ -910,7 +932,7 @@ class h5_plot:
 								elif row == 2:
 									if index in self.det_list:
 										plt.subplot2grid((rows,cols), (row, col*12), colspan=12)
-										plt.hist(self.y[index-1][self.sb[0]][self.freq[0]][:])	
+										plt.hist(self.y[index-1][self.sb[0]][self.freq[0]][:], bins = "fd")	
 										if self.y_lim:
 											plt.ylim(self.y_min, self.y_max)
 										leg = plt.legend(["det %i" %(index)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
@@ -930,7 +952,7 @@ class h5_plot:
 								else:
 									if index in self.det_list:
 										plt.subplot2grid((rows,cols), (row, col*12-6), colspan=12)
-										plt.hist(self.y[index-1][self.sb[0]][self.freq[0]][:])	
+										plt.hist(self.y[index-1][self.sb[0]][self.freq[0]][:], bins = "fd")	
 										if self.y_lim:
 											plt.ylim(self.y_min, self.y_max)
 										leg = plt.legend(["det %i" %(index)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
@@ -944,45 +966,30 @@ class h5_plot:
 										plt.yticks([])
 					
 					plt.text(-0.45, 6., 'tod', ha='center', va='center', fontsize=20)
-					plt.text(-0.45, -0.3, '--------------------------Time [s from first data]-------------------------->', ha='center', va='center', fontsize=16)
-					plt.text(-3.50, 3., '----------Detector readings [ADU]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					plt.text(-0.45, -0.3, '--------------------------Detector readings [$\\mu K$]-------------------------->', ha='center', va='center', fontsize=16)
+					plt.text(-3.50, 3., '--------------------------Count at frequency %.2f-------------------------->' % self.frequencies[self.sb[0]][self.freq[0]], ha='center', va='center', rotation='vertical', fontsize=16)
 					plt.subplots_adjust(wspace= 1) 
 
 				elif len(self.det) == 1:
 					fig, ax = plt.subplots(1, 1)
 					for k in range(len(self.freq)):
-						if len(self.freq) > 1:
-							ax.set_title("det %i" % (self.det[0] + 1))
-							legends.append("%.2f [Hz]" % self.frequencies[self.sb[k]][self.freq[k]])
-						else:
-							ax.set_title("det %i, freq %.2f [Hz]"% ((self.det[0]+1), self.frequencies[self.sb[k]][self.freq[k]]))
+						ax.set_title("det %i"% (self.det[0]+1))
 						ax.grid()
-						ax.plot(self.x, self.y[self.det[0]][self.sb[k]][self.freq[k]])
-					if len(self.freq) > 1:
-						plt.legend(legends, loc=2, bbox_to_anchor=(1.0, 0.55), fancybox=True, shadow=True, fontsize=12)
-
+						ax.hist(self.y[self.det[0]][self.sb[k]][self.freq[k]], bins="fd")
 					fig.text(0.5, 0.95, 'tod', ha='center', va='center', fontsize=20)
-					fig.text(0.5, 0.03, '--------------------------Time [s from first data]-------------------------->', ha='center', va='center', fontsize=16)
-					fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					fig.text(0.5, 0.03, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', fontsize=16)
+					fig.text(0.06, 0.5, '-----------------Count at frequency %.2f----------------->' % self.frequencies[self.sb[0]][self.freq[0]], ha='center', va='center', rotation='vertical', fontsize=16)
 					
 				elif len(self.det) == 2:
 					fig, ax = plt.subplots(2, 1)
 					for i in range(2):
 						for k in range(len(self.freq)):
-							if len(self.freq) > 1:
-								ax[i].set_title("det %i" % (self.det[i]+1))
-								legends.append("%.2f [Hz]" % self.frequencies[self.sb[k]][self.freq[k]])
-							else:
-								ax[i].set_title("det %i, freq %.2f [Hz]"% ((self.det[i]+1), self.frequencies[self.sb[k]][self.freq[k]]))
+							ax[i].set_title("det %i"% (self.det[i]+1))
 							ax[i].grid()
-							ax[i].plot(self.x, self.y[self.det[i]-1][self.sb[k]][self.freq[k]])
-
-					if len(self.freq) > 1:
-						plt.legend(legends, loc=2, bbox_to_anchor=(1.0, 1.2), fancybox=True, shadow=True, fontsize=12)
-
+							ax[i].hist(self.y[self.det[i]-1][self.sb[k]][self.freq[k]], bins="fd")
 					fig.text(0.5, 0.95, 'tod', ha='center', va='center', fontsize=20)
-					fig.text(0.5, 0.03, '--------------------------Time [s from first data]-------------------------->', ha='center', va='center', fontsize=16)
-					fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					fig.text(0.5, 0.03, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', fontsize=16)
+					fig.text(0.06, 0.5, '-----------------Count at frequency %.2f----------------->' % self.frequencies[self.sb[0]][self.freq[0]], ha='center', va='center', rotation='vertical', fontsize=16)
 
 				else:
 					fig, ax = plt.subplots(2, 2)
@@ -990,20 +997,13 @@ class h5_plot:
 					for i in range(2):
 						for j in range(2):
 							for k in range(len(self.freq)):
-								if len(self.freq) > 1:
-									ax[i, j].set_title("det %i" % (self.det[count]+1))
-									legends.append("%.2f Hz" % self.frequencies[self.sb[k]][self.freq[k]])
-								else:
-									ax[i, j].set_title("det %i, freq %.2f Hz"% ((self.det[count]+1), self.frequencies[self.sb[k]][self.freq[k]]))
+								ax[i, j].set_title("det %i"% (self.det[count]+1))
 								ax[i, j].grid()
-								ax[i, j].plot(self.x, self.y[self.det[count]][self.sb[k]][self.freq[k]])
+								ax[i, j].hist(self.y[self.det[count]][self.sb[k]][self.freq[k]], bins="fd")
 							count += 1
-					if len(self.freq) > 1:
-						plt.legend(legends, loc=2, bbox_to_anchor=(1.0, 1.2), fancybox=True, shadow=True, fontsize=12)
-
 					fig.text(0.5, 0.95, 'tod', ha='center', va='center', fontsize=20)
-					fig.text(0.5, 0.03, '--------------------------Time [s from first data]-------------------------->', ha='center', va='center', fontsize=16)
-					fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					fig.text(0.5, 0.03, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', fontsize=16)
+					fig.text(0.06, 0.5, '-----------------Count at frequency %.2f----------------->' % self.frequencies[self.sb[0]][self.freq[0]], ha='center', va='center', rotation='vertical', fontsize=16)
 	
 
 			#freq
@@ -1026,12 +1026,9 @@ class h5_plot:
 
 										plt.subplot2grid((rows,cols), (row, col*12), colspan=12)	
 										y = self.y[index-1]
-
 										y = list(y[0][:, self.time[0]]) + list(y[1][:, self.time[0]]) + list(y[2][:, self.time[0]]) + list(y[3][:, self.time[0]])
-										plt.plot(self.x, y, "b")
+										plt.hist(y, bins="fd")
 
-										if self.y_lim:
-											plt.ylim(self.y_min, self.y_max)
 										leg = plt.legend(["det %i" %(12)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
 										for item in leg.legendHandles:
 										    item.set_visible(False)	
@@ -1052,9 +1049,7 @@ class h5_plot:
 										plt.subplot2grid((rows,cols), (row, col*12), colspan=12)
 										y = self.y[index-1]
 										y = list(y[0][:,self.time[0]]) + list(y[1][:,self.time[0]]) + list(y[2][:,self.time[0]]) + list(y[3][:,self.time[0]])
-										plt.plot(self.x, y, "b")
-										if self.y_lim:
-											plt.ylim(self.y_min, self.y_max)
+										plt.hist(y, bins="fd")
 										leg = plt.legend(["det %i" %(index)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
 										for item in leg.legendHandles:
 										    item.set_visible(False)	
@@ -1073,9 +1068,7 @@ class h5_plot:
 										plt.subplot2grid((rows,cols), (row, col*12-6), colspan=12)
 										y = self.y[index-1]
 										y = list(y[0][:,self.time[0]]) + list(y[1][:,self.time[0]]) + list(y[2][:,self.time[0]]) + list(y[3][:,self.time[0]])
-										plt.plot(self.x, y, "b")
-										if self.y_lim:
-											plt.ylim(self.y_min, self.y_max)
+										plt.hist(y, bins="fd")
 										leg = plt.legend(["det %i" %(index)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
 										for item in leg.legendHandles:
 										    item.set_visible(False)	
@@ -1087,46 +1080,34 @@ class h5_plot:
 										plt.yticks([])
 
 					plt.text(-0.45, 6., 'tod', ha='center', va='center', fontsize=20)
-					plt.text(-0.45, -0.3, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
-					plt.text(-3.50, 3., '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					plt.text(-0.45, -0.3, '--------------------------Detector readings [$\\mu K$]-------------------------->', ha='center', va='center', fontsize=16)
+					plt.text(-3.50, 3., '--------------------Count at time %.2f [s after first data]-------------------->' % ((self.times[self.time[0]] - self.times[0])*24*60*60), ha='center', va='center', rotation='vertical', fontsize=16)
 					plt.subplots_adjust(wspace= 1) 
 
 				elif len(self.det) == 1:
 					fig, ax = plt.subplots(1, 1)
 					for k in range(len(self.time)):
-						if len(self.time) > 1:
-							ax.set_title("det %i" % (self.det[0]+1))
-							legends.append("%.2f [s from first data]" % ((self.times[self.time[k]] - self.times[self.time[0]])*24*60*60))
-						else:
-							ax.set_title("det %i, time %.2f [s from first data]"% ((self.det[0]+1), (self.times[self.time[k]] - self.times[self.time[0]])*24*60*60))
+						ax.set_title("det %i, time %.2f [s from first data]"% ((self.det[0]+1), (self.times[self.time[k]] - self.times[0])*24*60*60))
 						ax.grid()
 						y = self.y[self.det[0]]
 						y = list(y[0][:, self.time[k]]) + list(y[1][:, self.time[k]]) + list(y[2][:, self.time[k]]) + list(y[3][:,self.time[k]])
-						ax.plot(self.x, y)
-					if len(self.time) > 1:
-						plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, -0.02), fancybox=True, shadow=True, ncol=5)
+						ax.hist(y, bins="fd")
 					fig.text(0.5, 0.95, 'tod', ha='center', va='center', fontsize=20)
-					fig.text(0.5, 0.015, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
-					fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					fig.text(0.5, 0.03, '--------------------Detector readings [$\\mu K$]-------------------->', ha='center', va='center', fontsize=16)
+					fig.text(0.06, 0.5, '----------Count at time %.2f [s after first data]---------->' % ((self.times[self.time[0]] - self.times[0])*24*60*60), ha='center', va='center', rotation='vertical', fontsize=16)
 
 				elif len(self.det) == 2:
 					fig, ax = plt.subplots(2, 1)
 					for i in range(2):
 						for k in range(len(self.time)):
-							if len(self.time) > 1:
-								ax[i].set_title("det %i" % (self.det[i]+1))
-								legends.append("%.2f [s from first data]" % ((self.times[self.time[k]] - self.times[self.time[0]])*24*60*60))
-							else:
-								ax[i].set_title("det %i, time %.2f [s from first data]"% ((self.det[i]+1), (self.times[self.time[k]] - self.times[self.time[0]])*24*60*60))
+							ax[i].set_title("det %i"% (self.det[i]+1))
 							ax[i].grid()
 							y = self.y[self.det[i]]
 							y = list(y[0][:,self.time[k]]) + list(y[1][:,self.time[k]]) + list(y[2][:,self.time[k]]) + list(y[3][:,self.time[k]])
-							ax[i].plot(self.x, y)
-					if len(self.time) > 1:
-						plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, -0.02), fancybox=True, shadow=True, ncol=5)
+							ax[i].hist(y, bins="fd")
 					fig.text(0.5, 0.95, 'tod', ha='center', va='center', fontsize=20)
-					fig.text(0.5, 0.015, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
-					fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					fig.text(0.5, 0.03, '--------------------Detector readings [$\\mu K$]-------------------->', ha='center', va='center', fontsize=16)
+					fig.text(0.06, 0.5, '----------Count at time %.2f [s after first data]---------->' % ((self.times[self.time[0]] - self.times[0])*24*60*60), ha='center', va='center', rotation='vertical', fontsize=16)
 
 				else:
 					fig, ax = plt.subplots(2, 2)
@@ -1134,21 +1115,15 @@ class h5_plot:
 					for i in range(2):
 						for j in range(2):
 							for k in range(len(self.time)):
-								if len(self.time) > 1:
-									ax[i, j].set_title("det %i" % (self.det[count]+1))
-									legends.append("%.2f [s from first data]" % ((self.times[int(self.time[k])] - self.times[0])*24*60*60))
-								else:
-									ax[i, j].set_title("det %i, time %.2f [s from first data]"% ((self.det[count]+1), (self.times[self.time[k]] - self.times[0])*24*60*60))
+								ax[i, j].set_title("det %i"% (self.det[count]+1))
 								ax[i, j].grid()
 								y = self.y[self.det[count]]
 								y = list(y[0][:,self.time[k]]) + list(y[1][:,self.time[k]]) + list(y[2][:,self.time[k]]) + list(y[3][:,self.time[k]])
-								ax[i, j].plot(self.x, y)
+								ax[i, j].hist(y, bins="fd")
 							count += 1
-					if len(self.time) > 1:
-						plt.legend(legends, loc='upper center', bbox_to_anchor=(-0.1, -0.045), fancybox=True, shadow=True, ncol=5)
 					fig.text(0.5, 0.95, 'tod', ha='center', va='center', fontsize=20)
-					fig.text(0.5, 0.015, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
-					fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+					fig.text(0.5, 0.03, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', fontsize=16)
+					fig.text(0.06, 0.5, '----------Count at time %.2f [s after first data]---------->' % ((self.times[self.time[0]] - self.times[0])*24*60*60), ha='center', va='center', rotation='vertical', fontsize=16)
 
 		else:
 			self.x = sum(self.x, [])
@@ -1169,9 +1144,7 @@ class h5_plot:
 									plt.subplot2grid((rows,cols), (row, col*12), colspan=12)
 									y = self.y[index-1]
 									y = list(y[0][:]) + list(y[1][:]) + list(y[2][:]) + list(y[3][:])
-									plt.plot(self.x, y, "b")
-									if self.y_lim:
-										plt.ylim(self.y_min, self.y_max)
+									plt.hist(y, bins="fd")									
 									leg = plt.legend(["%i" %(12)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
 									for item in leg.legendHandles:
 									    item.set_visible(False)	
@@ -1190,9 +1163,7 @@ class h5_plot:
 									plt.subplot2grid((rows,cols), (row, col*12), colspan=12)
 									y = self.y[index-1]
 									y = list(y[0][:]) + list(y[1][:]) + list(y[2][:]) + list(y[3][:])
-									plt.plot(self.x, y, "b")	
-									if self.y_lim:
-										plt.ylim(self.y_min, self.y_max)
+									plt.hist(y, bins="fd")
 									leg = plt.legend(["%i" %(index)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
 									for item in leg.legendHandles:
 									    item.set_visible(False)	
@@ -1210,9 +1181,7 @@ class h5_plot:
 									plt.subplot2grid((rows,cols), (row, col*12-6), colspan=12)
 									y = self.y[index-1]
 									y = list(y[0][:]) + list(y[1][:]) + list(y[2][:]) + list(y[3][:])
-									plt.plot(self.x, y, "b")	
-									if self.y_lim:
-										plt.ylim(self.y_min, self.y_max)
+									plt.hist(y, bins="fd")
 									leg = plt.legend(["%i" %(index)], handlelength=0, handletextpad=0, fancybox=True, fontsize="small")
 									for item in leg.legendHandles:
 									    item.set_visible(False)	
@@ -1224,8 +1193,8 @@ class h5_plot:
 									plt.yticks([])
 
 				plt.text(-0.45, 6., self.y1, ha='center', va='center', fontsize=20)
-				plt.text(-0.45, -0.3, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
-				plt.text(-3.50, 3., '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+				plt.text(-0.45, -0.3, '--------------------------Detector readings [$\\mu K$]-------------------------->', ha='center', va='center', fontsize=16)
+				plt.text(-3.50, 3., '-------------------------------Count------------------------------->', ha='center', va='center', rotation='vertical', fontsize=16)
 				plt.subplots_adjust(wspace= 1) 
 
 
@@ -1236,10 +1205,10 @@ class h5_plot:
 				ax.grid()
 				y = self.y[self.det[0]]
 				y = list(y[0]) + list(y[1]) + list(y[2]) + list(y[3])
-				ax.plot(self.x, y)
+				ax.hist(y, bins="fd")
 				fig.text(0.51, 0.95, self.y1, ha='center', va='center', fontsize=20)
-				fig.text(0.52, 0.03, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
-				fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+				fig.text(0.5, 0.03, '------------------------------Detector readings [$\\mu K$]------------------------------>', ha='center', va='center', fontsize=16)
+				fig.text(0.06, 0.5, '------------------------------Count------------------------------>', ha='center', va='center', rotation='vertical', fontsize=16)
 
 			elif len(self.det) == 2:
 				fig, ax = plt.subplots(2, 1)
@@ -1248,10 +1217,10 @@ class h5_plot:
 					ax[i].grid()
 					y = self.y[self.det[i]]
 					y = list(y[0]) + list(y[1]) + list(y[2]) + list(y[3])
-					ax[i].plot(self.x, y)
+					ax[i].hist(y, bins="fd")
 				fig.text(0.51, 0.95, self.y1, ha='center', va='center', fontsize=20)
-				fig.text(0.52, 0.015, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
-				fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+				fig.text(0.5, 0.03, '------------------------------Detector readings [$\\mu K$]------------------------------>', ha='center', va='center', fontsize=16)
+				fig.text(0.06, 0.5, '------------------------------Count------------------------------>', ha='center', va='center', rotation='vertical', fontsize=16)
 
 
 			else:
@@ -1263,11 +1232,11 @@ class h5_plot:
 						ax[i, j].grid()
 						y = self.y[self.det[count]]
 						y = list(y[0]) + list(y[1]) + list(y[2]) + list(y[3])
-						ax[i, j].plot(self.x, y)
+						ax[i, j].hist(y, bins="fd")
 						count += 1
 				fig.text(0.51, 0.95, self.y1, ha='center', va='center', fontsize=20)
-				fig.text(0.52, 0.015, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
-				fig.text(0.06, 0.5, '----------Detector readings [$\\mu K$]---------->', ha='center', va='center', rotation='vertical', fontsize=16)
+				fig.text(0.5, 0.03, '------------------------------Detector readings [$\\mu K$]------------------------------>', ha='center', va='center', fontsize=16)
+				fig.text(0.06, 0.5, '------------------------------Count------------------------------>', ha='center', va='center', rotation='vertical', fontsize=16)
 
 		mng = plt.get_current_fig_manager()
 		mng.full_screen_toggle()
