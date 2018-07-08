@@ -12,7 +12,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 """
 TO DO:
-Fix so that detectors that does not exist shows blank even if non-all plots and histograms 
+- Fix so that detectors that does not exist shows blank even if non-all plots and histograms 
+- Look for ways of making the program run faster
 """
 
 
@@ -164,8 +165,8 @@ class h5_plot:
 		group_keys 		= list(f.keys())
 
 		###### THIS ONE TAKES TIME ######
-		self.times 			= list(f[group_keys[group_keys.index("time")]])
-
+		self.times 			= np.array(f[group_keys[group_keys.index("time")]])
+		
 		self.detectors 		= [[0, 12, 11, 10, 0], [0, 13, 4, 3, 9], [14, 5, 1, 2, 8], [0, 15, 6, 7, 19], [0, 16, 17, 18, 0]]
 		self.freq_flags 	= [[16], "[all]"]
 		self.det_choices 	= [1, 2, 4, "all"]
@@ -176,7 +177,6 @@ class h5_plot:
 		self.det_list		= [1, 12]
 		df = 0.0625
 		self.frequencies	= [list(np.linspace(26, 28-df, 32)), list(np.linspace(28, 30-df, 32)), list(np.linspace(30, 32-df, 32)), list(np.linspace(32, 34-df, 32))] #list(f[group_keys[7]])
-
 
 		if self.plot in self.plot_choices:
 			pass
@@ -198,8 +198,8 @@ class h5_plot:
 		self.det_values 	= range(0, 19)
 		self.time_values	= range(0, 61392)
 		
-		self.sb_values 		= range(0, 4)
-		self.freq_values 	= range(0, 32)
+		self.sb_values 		= range(1, 5)
+		self.freq_values 	= range(1, 33)
 
 
 		index = group_keys.index("gain")
@@ -223,6 +223,7 @@ class h5_plot:
 				sys.exit()
 			for i in range(len(self.time)):
 				if 1 <= self.time[i] <= 61392:
+					self.time[i] -= 1
 					pass
 				else:
 					print "Your time selection was not valid."
@@ -262,8 +263,8 @@ class h5_plot:
 						closest_band	= i
 						closest_freq 	= j
 
-			self.sb 	= str([closest_band])
-			self.freq 	= str([closest_freq])
+			self.sb1 	= str([closest_band])
+			self.freq1 	= str([closest_freq])
 			print "Average frequency chosen: %.3f" % self.frequencies[closest_band][closest_freq]
 
 
@@ -286,13 +287,16 @@ class h5_plot:
 				sys.exit()
 			for i in range(len(self.freq)):
 				if self.freq[i] in self.freq_values[:][:]:
-					pass
+					if self.avg:
+						pass
+					else:	
+						self.freq[i] -= 1
+					
 				else:
 					print "Your frequency selection was not valid."
 					print "Make sure you provide the correct frequency number (1-32)"
 					sys.exit()
-
-
+		
 		if self.det1 == "[all]":
 			self.all_det = True
 			self.det = self.det_values
@@ -388,6 +392,11 @@ class h5_plot:
 					print "Your sb selection was not valid."
 					print "Make sure you provide the correct sb number (1-4)"
 					sys.exit()
+			for i in range(len(self.sb)):
+				if self.avg:
+					pass
+				else:
+					self.sb[i] -= 1
 
 		if ((self.set_freq1) or (self.set_sb1)):
 			if self.freq1 == "[all]":
@@ -412,15 +421,16 @@ class h5_plot:
 
 			else:
 				pass
+		
 
 		if self.y1 in group_keys:
 			index = group_keys.index(self.y1)
-			self.y = list(f[group_keys[index]])	
+			self.y = np.array(f[group_keys[index]])	
 			if self.y1 == "tod":
 				index = group_keys.index("gain")
-				self.gain = list(f[group_keys[index]])
+				self.gain = np.array(f[group_keys[index]])
 
-				self.y=list(np.asarray(self.y)/np.asarray(self.gain))
+				self.y= self.y/self.gain
 			else:
 				pass
 
@@ -431,7 +441,7 @@ class h5_plot:
 
 		if self.x1 in group_keys:
 			index = group_keys.index(self.x1)
-			self.x = list(f[group_keys[index]])	
+			self.x = np.array(f[group_keys[index]])	
 		else:
 			print "The x object could not be found." 
 			print "Make sure the object name is spelled correctly and exists,"
@@ -449,7 +459,7 @@ class h5_plot:
 
 		if self.x1 == "nu":
 			self.x = self.frequencies
-			if self.freq in self.freq_flags:
+			if self.set_freq1 == False:
 				pass
 			else:
 				print "All frequencies are automatically selected when plotting with frequencies on x-axis."
@@ -468,8 +478,7 @@ class h5_plot:
 				sys.exit()
 			else:
 				pass
-
-	def plot_graph(self):
+		
 		if self.y1 == "tod":
 			legends = []
 			if self.x1 == "time":
@@ -628,11 +637,8 @@ class h5_plot:
 									if index in self.det_list:
 										if index == 12:
 											index = 2
-
 										plt.subplot2grid((rows,cols), (row, col*12), colspan=12)	
-										y = self.y[index-1]
-
-										y = list(y[0][:, self.time[0]]) + list(y[1][:, self.time[0]]) + list(y[2][:, self.time[0]]) + list(y[3][:, self.time[0]])
+										y = np.concatenate(self.y[index-1,:, :, self.time[0]])
 										plt.plot(self.x, y, "b")
 
 										if self.y_lim:
@@ -655,8 +661,7 @@ class h5_plot:
 								elif row == 2:
 									if index in self.det_list:
 										plt.subplot2grid((rows,cols), (row, col*12), colspan=12)
-										y = self.y[index-1]
-										y = list(y[0][:,self.time[0]]) + list(y[1][:,self.time[0]]) + list(y[2][:,self.time[0]]) + list(y[3][:,self.time[0]])
+										y = np.concatenate(self.y[index-1,:, :, self.time[0]])
 										plt.plot(self.x, y, "b")
 										if self.y_lim:
 											plt.ylim(self.y_min, self.y_max)
@@ -676,8 +681,7 @@ class h5_plot:
 								else:
 									if index in self.det_list:
 										plt.subplot2grid((rows,cols), (row, col*12-6), colspan=12)
-										y = self.y[index-1]
-										y = list(y[0][:,self.time[0]]) + list(y[1][:,self.time[0]]) + list(y[2][:,self.time[0]]) + list(y[3][:,self.time[0]])
+										y = np.concatenate(self.y[index-1,:, :, self.time[0]])
 										plt.plot(self.x, y, "b")
 										if self.y_lim:
 											plt.ylim(self.y_min, self.y_max)
@@ -705,8 +709,7 @@ class h5_plot:
 						else:
 							ax.set_title("det %i, time %.2f [s from first data]"% ((self.det[0]+1), (self.times[self.time[k]] - self.times[self.time[0]])*24*60*60))
 						ax.grid()
-						y = self.y[self.det[0]]
-						y = list(y[0][:, self.time[k]]) + list(y[1][:, self.time[k]]) + list(y[2][:, self.time[k]]) + list(y[3][:,self.time[k]])
+						y = np.concatenate(self.y[self.det[0],:, :, self.time[k]])
 						ax.plot(self.x, y)
 					if len(self.time) > 1:
 						plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, -0.02), fancybox=True, shadow=True, ncol=5)
@@ -724,8 +727,7 @@ class h5_plot:
 							else:
 								ax[i].set_title("det %i, time %.2f [s from first data]"% ((self.det[i]+1), (self.times[self.time[k]] - self.times[self.time[0]])*24*60*60))
 							ax[i].grid()
-							y = self.y[self.det[i]]
-							y = list(y[0][:,self.time[k]]) + list(y[1][:,self.time[k]]) + list(y[2][:,self.time[k]]) + list(y[3][:,self.time[k]])
+							y = np.concatenate(self.y[self.det[0],:, :, self.time[k]])
 							ax[i].plot(self.x, y)
 					if len(self.time) > 1:
 						plt.legend(legends, loc='upper center', bbox_to_anchor=(0.5, -0.02), fancybox=True, shadow=True, ncol=5)
@@ -745,8 +747,7 @@ class h5_plot:
 								else:
 									ax[i, j].set_title("det %i, time %.2f [s from first data]"% ((self.det[count]+1), (self.times[self.time[k]] - self.times[0])*24*60*60))
 								ax[i, j].grid()
-								y = self.y[self.det[count]]
-								y = list(y[0][:,self.time[k]]) + list(y[1][:,self.time[k]]) + list(y[2][:,self.time[k]]) + list(y[3][:,self.time[k]])
+								y = np.concatenate(self.y[self.det[0],:, :, self.time[k]])
 								ax[i, j].plot(self.x, y)
 							count += 1
 					if len(self.time) > 1:
@@ -772,8 +773,7 @@ class h5_plot:
 									if index == 12:
 										index = 2
 									plt.subplot2grid((rows,cols), (row, col*12), colspan=12)
-									y = self.y[index-1]
-									y = list(y[0][:]) + list(y[1][:]) + list(y[2][:]) + list(y[3][:])
+									y = np.concatenate(self.y[index-1, :])
 									plt.plot(self.x, y, "b")
 									if self.y_lim:
 										plt.ylim(self.y_min, self.y_max)
@@ -793,8 +793,7 @@ class h5_plot:
 							elif row == 2:
 								if index in self.det_list:
 									plt.subplot2grid((rows,cols), (row, col*12), colspan=12)
-									y = self.y[index-1]
-									y = list(y[0][:]) + list(y[1][:]) + list(y[2][:]) + list(y[3][:])
+									y = np.concatenate(self.y[index-1,:, :])
 									plt.plot(self.x, y, "b")	
 									if self.y_lim:
 										plt.ylim(self.y_min, self.y_max)
@@ -813,8 +812,7 @@ class h5_plot:
 							else:
 								if index in self.det_list:
 									plt.subplot2grid((rows,cols), (row, col*12-6), colspan=12)
-									y = self.y[index-1]
-									y = list(y[0][:]) + list(y[1][:]) + list(y[2][:]) + list(y[3][:])
+									y = np.concatenate(self.y[index-1,:, :])
 									plt.plot(self.x, y, "b")	
 									if self.y_lim:
 										plt.ylim(self.y_min, self.y_max)
@@ -839,8 +837,7 @@ class h5_plot:
 				fig, ax = plt.subplots(1, 1)
 				ax.set_title("det %i"% (self.det[0]+1))
 				ax.grid()
-				y = self.y[self.det[0]]
-				y = list(y[0]) + list(y[1]) + list(y[2]) + list(y[3])
+				y = np.concatenate(self.y[self.det[0], :])
 				ax.plot(self.x, y)
 				fig.text(0.51, 0.95, self.y1, ha='center', va='center', fontsize=20)
 				fig.text(0.52, 0.03, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
@@ -851,8 +848,7 @@ class h5_plot:
 				for i in range(2):
 					ax[i].set_title("det %i"% (self.det[i]+1))
 					ax[i].grid()
-					y = self.y[self.det[i]]
-					y = list(y[0]) + list(y[1]) + list(y[2]) + list(y[3])
+					y = np.concatenate(self.y[self.det[0], :])
 					ax[i].plot(self.x, y)
 				fig.text(0.51, 0.95, self.y1, ha='center', va='center', fontsize=20)
 				fig.text(0.52, 0.015, '--------------------------Frequency [Hz]-------------------------->', ha='center', va='center', fontsize=16)
@@ -866,8 +862,7 @@ class h5_plot:
 					for j in range(2):
 						ax[i, j].set_title("det %i"% (self.det[count]+1))
 						ax[i, j].grid()
-						y = self.y[self.det[count]]
-						y = list(y[0]) + list(y[1]) + list(y[2]) + list(y[3])
+						y = np.concatenate(self.y[self.det[0], :])
 						ax[i, j].plot(self.x, y)
 						count += 1
 				fig.text(0.51, 0.95, self.y1, ha='center', va='center', fontsize=20)
