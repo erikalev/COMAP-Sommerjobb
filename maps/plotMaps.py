@@ -46,7 +46,7 @@ else:
 #        add = False
 
 try:
-    opts, args = getopt.getopt(sys.argv[2:],"f:l:p:d:s:", ["freq=", "lim=", "plot =", "data=", "sb="])
+    opts, args = getopt.getopt(sys.argv[2:],"f:l:p:d:s:x:y:", ["freq=", "lim=", "plot =", "data=", "sb=", "xval=", "yval="])
 except getopt.GetoptError:
     usage()
 
@@ -65,6 +65,8 @@ s_choices       = ["s1", "s2", "s3", "s4"]
 data_choices    = ["all", "rms", "map", "map/rms"]
 set_freq        = False
 set_sb          = False
+set_x           = False
+set_y           = False
 for opt, arg in opts:
     if opt in ("-f", "--freq"):
         if arg in freq_choices:
@@ -91,6 +93,13 @@ for opt, arg in opts:
 
     elif opt in ('-l', '--lim'):
         lim     = int(arg)
+
+
+    elif opt in ('-x', '--xval'):
+        x     = float(arg)
+    elif opt in ('-y', '--yval'):
+        y     = float(arg)
+
 
     elif opt in ('-s', '--sb'):
         set_sb = True
@@ -575,6 +584,10 @@ def setup_gif(filename):
         mapname = filename[0:-7] + '_map.gif'
         makeMap_gif(x, y, maps, hitData, mapname)
         print 'Done'
+
+if set_x and set_y:
+    plt.scatter(x, y)
+    print "yay"
 
 if plot == 'one':
     if set_freq:
