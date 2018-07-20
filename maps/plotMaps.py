@@ -10,6 +10,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import textwrap
 import random
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import FileDialog
 
 def usage():
     prefix = " "
@@ -21,12 +22,16 @@ def usage():
     m2 = "  (Plot type, either one (1 plot), four (4 plots), diff (a difference plot) or gif. Default four) "
     m3 = "  (Data type, either map (the map), rms (root mean square), map/rms or all (all 3 + hit count). Default map)"
     m4 = "    (Side band for difference plot as a list, ie. [1,4]. Default none) "
+    m5 = "    (x-position or plot-marker) "
+    m6 = "    (y-position or plot-marker) "
     print "\nThis is the usage function\n"
     print "Flags:"
     print "-f ----> optional --freq", wrapper.fill(m1)
     print "-p ----> optional --plot", wrapper.fill(m2)
     print "-d ----> optional --data", wrapper.fill(m3)
     print "-s ----> optional --sb", wrapper.fill(m4)
+    print "-x ----> optional --xval", wrapper.fill(m5)
+    print "-y ----> optional --yval", wrapper.fill(m6)
     print ""    
     sys.exit()
 
@@ -96,9 +101,11 @@ for opt, arg in opts:
 
 
     elif opt in ('-x', '--xval'):
-        x     = float(arg)
+        set_x = True
+        x_point     = float(arg)
     elif opt in ('-y', '--yval'):
-        y     = float(arg)
+        set_y = True
+        y_point     = float(arg)
 
 
     elif opt in ('-s', '--sb'):
@@ -216,15 +223,18 @@ def makeMap_one(x, y, mapData, hitData, mapname):
         #minVal = -9.6e4 # min value for color plot
 
         fig = plt.figure()
-
+        #ax = fig.gca()
+        #plt.hold("on")
         plt.imshow(mapData, extent=(x_min,x_max,y_min,y_max), interpolation='nearest',cmap=plt.cm.viridis,origin='lower')
         #plt.imshow(mapData, interpolation='nearest',cmap=plt.cm.viridis,origin='lower')
         #plt.plot(x_true,y_true,'wo')
+
         plt.ylabel('Declination [deg]')
         plt.xlabel('Right Ascension [deg]')
         #plt.title('')
         plt.colorbar()
-
+        if set_x and set_y:
+            plt.plot(x_point, y_point, "-o", color="black", mfc='none')
         plt.savefig(mapname)#,bbox_inches='tight')
         plt.close(fig)
 
@@ -251,6 +261,8 @@ def makeMap_noise(x,y, mapData, hitData, mapname, limit):
         plt.xlabel('Right Ascension [deg]')
         #plt.title('')
         plt.colorbar()
+        if set_x and set_y:
+            plt.plot(x_point, y_point, "-o", color="black", mfc='none')
 
         plt.savefig(mapname)#,bbox_inches='tight')
         plt.close(fig)
@@ -294,6 +306,8 @@ def makeMap_sb(x, y, mapData_0, mapData_1, mapData_2, mapData_3, hitData, mapnam
     divider = make_axes_locatable(ax1)
     cax1 = divider.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(im1, ax=ax1, cax=cax1)
+    if set_x and set_y:
+        plt.plot(x_point, y_point, "-o", color="black", mfc='none')
         
     # A USB
     #print '2/4 ...'
@@ -309,6 +323,8 @@ def makeMap_sb(x, y, mapData_0, mapData_1, mapData_2, mapData_3, hitData, mapnam
     divider = make_axes_locatable(ax2)
     cax2 = divider.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(im2, ax=ax2, cax=cax2)
+    if set_x and set_y:
+        plt.plot(x_point, y_point, "-o", color="black", mfc='none')
 
     # B LSB
     #print '3/4 ...'
@@ -322,6 +338,8 @@ def makeMap_sb(x, y, mapData_0, mapData_1, mapData_2, mapData_3, hitData, mapnam
     divider = make_axes_locatable(ax3)
     cax3 = divider.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(im3, ax=ax3, cax=cax3)
+    if set_x and set_y:
+        plt.plot(x_point, y_point, "-o", color="black", mfc='none')
 
     # B USB
     #print '4/4 ...'
@@ -335,6 +353,8 @@ def makeMap_sb(x, y, mapData_0, mapData_1, mapData_2, mapData_3, hitData, mapnam
     divider = make_axes_locatable(ax4)
     cax4 = divider.append_axes("right", size="5%", pad=0.05)
     plt.colorbar(im4, ax=ax4, cax=cax4)
+    if set_x and set_y:
+        plt.plot(x_point, y_point, "-o", color="black", mfc='none')
         
     #fig.suptitle(str(scan_id))
     #fig.subplots_adjust(top=0.88)
@@ -585,9 +605,6 @@ def setup_gif(filename):
         makeMap_gif(x, y, maps, hitData, mapname)
         print 'Done'
 
-if set_x and set_y:
-    plt.scatter(x, y)
-    print "yay"
 
 if plot == 'one':
     if set_freq:
